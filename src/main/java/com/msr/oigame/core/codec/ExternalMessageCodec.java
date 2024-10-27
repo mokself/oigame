@@ -45,42 +45,56 @@ public class ExternalMessageCodec implements MessageCodec {
             Object[] array = (Object[]) data;
             int cmd = (int) array[0];
             if (array.length == 1) {
-                return encodeMsg(cmd).getData();
+                return encodeMsg(cmd, 0).getData();
+            }
+            int responseStatus = (int) array[1];
+            if (array.length == 2) {
+                return encodeMsg(cmd, responseStatus).getData();
             }
             Object[] dataList = new Object[array.length - 1];
             System.arraycopy(array, 1, dataList, 0, dataList.length);
-            return encodeMsg(cmd, dataList).getData();
+            return encodeMsg(cmd, responseStatus, dataList).getData();
         } else if (data instanceof Collection<?> collection) {
             Iterator<?> iterator = collection.iterator();
             int cmd = (int) iterator.next();
-            if (iterator.hasNext()) {
-                Object[] dataList = new Object[collection.size()];
-                System.arraycopy(collection.toArray(), 1, dataList, 0, dataList.length);
-                return encodeMsg(cmd, dataList).getData();
-            } else {
-                return encodeMsg(cmd).getData();
+            if (!iterator.hasNext()) {
+                return encodeMsg(cmd, 0).getData();
             }
+            int responseStatus = (int) iterator.next();
+            if (!iterator.hasNext()) {
+                return encodeMsg(cmd, responseStatus).getData();
+            }
+
+            Object[] dataList = new Object[collection.size()];
+            System.arraycopy(collection.toArray(), 2, dataList, 0, dataList.length);
+            return encodeMsg(cmd, responseStatus, dataList).getData();
         } else if (data instanceof Iterable<?> iterable) {
             Iterator<?> iterator = iterable.iterator();
             int cmd = (int) iterator.next();
-            if (iterator.hasNext()) {
-                List<Object> dataList = new ArrayList<>();
-                while (iterator.hasNext()) {
-                    dataList.add(iterator.next());
-                }
-                return encodeMsg(cmd, dataList.toArray()).getData();
-            } else {
-                return encodeMsg(cmd).getData();
+            if (!iterator.hasNext()) {
+                return encodeMsg(cmd, 0).getData();
             }
+            int responseStatus = (int) iterator.next();
+            if (!iterator.hasNext()) {
+                return encodeMsg(cmd, responseStatus).getData();
+            }
+
+            List<Object> dataList = new ArrayList<>();
+            while (iterator.hasNext()) {
+                dataList.add(iterator.next());
+            }
+            return encodeMsg(cmd, responseStatus, dataList.toArray()).getData();
+
         }
         throw new UnsupportedOperationException();
     }
 
-    public ExternalMessage encodeMsg(int cmd, Object... data) {
+    public static ExternalMessage encodeMsg(int cmd, int responseStatus, Object... data) {
         // 创建一个堆缓冲区的byteBuf
-        ByteBuf byteBuf = Unpooled.buffer(4);
+        ByteBuf byteBuf = Unpooled.buffer(ExternalMessage.headerLength);
         // 写入指令
         byteBuf.writeInt(cmd);
+        byteBuf.writeInt(responseStatus);
         // 写入数据
         encode(byteBuf, data);
         return new ExternalMessage(byteBuf);

@@ -17,16 +17,25 @@ import java.util.List;
  */
 @Getter
 public class ExternalMessage implements BaseMessage {
+    /**
+     * 消息头部长度，单位字节
+     * 消息头部长度固定，头部消息后面就是消息体
+     */
+    public static final int headerLength = 8;
+
     private final int cmd;
+    /** 响应码: 0:成功, 其他表示有错误 */
+    private final int responseStatus;
     private final ByteBuf data;
 
     public ExternalMessage(ByteBuf data) {
         this.cmd = data.readInt();
+        this.responseStatus = data.readInt();
         this.data = data;
     }
 
-    public static ExternalMessage emptyMsg() {
-        return new ExternalMessage(Unpooled.buffer());
+    public ExternalMessage(int cmd) {
+        this(Unpooled.copyInt(cmd, 0));
     }
 
     /**
@@ -36,8 +45,8 @@ public class ExternalMessage implements BaseMessage {
      * @return 索引
      */
     private int getIndex(int order) {
-        // 前4位是cmd数据，不需要读取
-        int _index = 4;
+        // 忽略headerLength
+        int _index = headerLength;
         for (int i = 0; i < order; i++) {
             byte type = data.getByte(_index);
             _index += 1;
@@ -60,11 +69,12 @@ public class ExternalMessage implements BaseMessage {
     /**
      * 读取一条数据
      * 会将底层的ByteBuf的readerIndex增加
+     * 不会读取header数据，因为header数据在构造函数中已经被读取
      * @return 读取的数据
      */
     public Object read() {
-        if (!data.isReadable()) {
-            return null;
+        if (!hasRead()) {
+            throw new MessageException("消息已被读取到末尾");
         }
         byte type = data.readByte();
         switch (type) {

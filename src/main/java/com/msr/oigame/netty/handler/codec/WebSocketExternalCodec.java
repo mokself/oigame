@@ -1,4 +1,4 @@
-package com.msr.oigame.netty.codec;
+package com.msr.oigame.netty.handler.codec;
 
 import com.msr.oigame.core.codec.DataCodec;
 import com.msr.oigame.core.protocol.BaseMessage;
@@ -18,10 +18,7 @@ public class WebSocketExternalCodec extends MessageToMessageCodec<BinaryWebSocke
     }
 
     protected void decode(ChannelHandlerContext ctx, BinaryWebSocketFrame binary, List<Object> out) {
-        ByteBuf contentBuf = binary.content();
-        byte[] bytes = new byte[contentBuf.readableBytes()];
-        contentBuf.readBytes(bytes);
-        BaseMessage message = DataCodec.decode(contentBuf);
+        BaseMessage message = DataCodec.decode(binary.content());
         out.add(message);
     }
 }

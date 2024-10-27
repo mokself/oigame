@@ -1,6 +1,8 @@
 package com.msr.oigame.core.codec;
 
 import com.msr.oigame.core.protocol.BaseMessage;
+import com.msr.oigame.core.protocol.ExternalMessage;
+import com.msr.oigame.core.protocol.JsonMessage;
 import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +12,7 @@ import lombok.Setter;
 public class DataCodec {
 
     /** 业务数据的编解码器 */
-    private static MessageCodec dataCodec = new ExternalMessageCodec();
+    private static MessageCodec dataCodec = new JsonMessageCodec();
 
     /**
      * 将业务参数编码成字节数组
@@ -30,5 +32,14 @@ public class DataCodec {
      */
     public static BaseMessage decode(ByteBuf data) {
         return dataCodec.decode(data);
+    }
+
+    public static <T> T decode(BaseMessage msg, Class<T> type) {
+        if (msg instanceof ExternalMessage externalMessage) {
+            return externalMessage.readObject(type);
+        } else if (msg instanceof JsonMessage jsonMessage) {
+            return jsonMessage.deserialize(type);
+        }
+        throw new UnsupportedOperationException("unsupported message type [" + msg.getClass().getName() + "]");
     }
 }

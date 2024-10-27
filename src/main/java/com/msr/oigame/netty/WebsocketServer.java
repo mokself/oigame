@@ -1,21 +1,29 @@
 package com.msr.oigame.netty;
 
-import com.msr.oigame.netty.codec.WebSocketExternalCodec;
+import com.msr.oigame.config.ServerProperties;
+import com.msr.oigame.netty.handler.AccessAuthHandler;
+import com.msr.oigame.netty.handler.ActionCommandHandler;
+import com.msr.oigame.netty.handler.SocketIdleHandler;
+import com.msr.oigame.netty.handler.codec.WebSocketExternalCodec;
+import com.msr.oigame.netty.loopgroup.GroupChannelOption;
+import com.msr.oigame.netty.loopgroup.GroupChannelOptionForLinux;
+import com.msr.oigame.netty.loopgroup.GroupChannelOptionForMac;
+import com.msr.oigame.netty.loopgroup.GroupChannelOptionForOther;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolConfig;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.NetUtil;
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -23,20 +31,35 @@ import java.time.Instant;
 
 @Slf4j
 @Component
-public class WebsocketServer {
+@RequiredArgsConstructor
+public class WebsocketServer implements CommandLineRunner, DisposableBean {
+    private final ServerProperties serverProperties;
+    private final ActionCommandHandler actionCommandHandler;
 
     private Channel serverChannel;
 
-    @PostConstruct
-    public void onApplicationEvent() {
+    @Override
+    public void run(String... args) {
+        start();
+    }
+
+    @Override
+    public void destroy() {
+        serverChannel.close();
+        log.info("netty服务已停止");
+    }
+
+    public void start() {
         Instant startTime = Instant.now();
         log.info("websocket服务启动中...");
-        EventLoopGroup boss = new NioEventLoopGroup();
-        EventLoopGroup worker = new NioEventLoopGroup();
+        GroupChannelOption groupChannelOption = createGroupChannelOption();
+        EventLoopGroup boss = groupChannelOption.bossGroup();
+        EventLoopGroup worker = groupChannelOption.workerGroup();
+        Class<? extends ServerChannel> channelClass = groupChannelOption.channelClass();
 
         ServerBootstrap server = new ServerBootstrap()
                 .group(boss, worker)
-                .channel(NioServerSocketChannel.class)
+                .channel(channelClass)
                 // 客户端保持活动连接
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 /*
@@ -50,36 +73,64 @@ public class WebsocketServer {
                 .childOption(ChannelOption.SO_SNDBUF, 20480)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
-                    protected void initChannel(@Nonnull SocketChannel ch) throws Exception {
+                    protected void initChannel(@Nonnull SocketChannel ch) {
                         WebSocketServerProtocolConfig config = WebSocketServerProtocolConfig.newBuilder()
-//                                .websocketPath(CoreOption.websocketPath)
-//                                .maxFramePayloadLength(CoreOption.packageMaxSize)
+                                .websocketPath(serverProperties.getWebsocketPath())
+                                .maxFramePayloadLength(1024 * 1024)
                                 .checkStartsWith(true)
                                 .allowExtensions(true)
                                 .build();
+                        ServerProperties.Idle propertiesIdle = serverProperties.getIdle();
 
                         ch.pipeline().addLast(
-                                new HttpServerCodec(),
-                                new HttpObjectAggregator(64 * 1024),
-                                new WebSocketServerCompressionHandler(),
-                                new WebSocketServerProtocolHandler(config),
-                                new WebSocketExternalCodec()
+                                new HttpServerCodec(),                                  // http编解码器
+                                new HttpObjectAggregator(64 * 1024),    // http消息聚合器
+                                new WebSocketServerCompressionHandler(),                // websocket数据压缩
+                                new WebSocketServerProtocolHandler(config),             // websocket协议处理器
+                                new WebSocketExternalCodec(),                           // websocket编解码
+                                new IdleStateHandler(                                   // netty心跳检测
+                                        propertiesIdle.getReaderIdleTime(),
+                                        propertiesIdle.getWriterIdleTime(),
+                                        propertiesIdle.getAllIdleTime(),
+                                        propertiesIdle.getTimeUnit()
+                                ),
+                                new SocketIdleHandler(serverProperties),                // 心跳处理
+                                AccessAuthHandler.INSTANCE,                             // 认证处理
+                                actionCommandHandler                                    // 业务处理
                         );
                     }
                 });
 
         try {
-            serverChannel = server.bind(6000).sync().channel();
+            serverChannel = server.bind(serverProperties.getPort()).sync().channel();
             Duration interval = Duration.between(startTime, Instant.now());
-            log.info("netty服务启动完成, 连接地址: ws://{}:{} 耗时: {}ms", NetUtil.LOCALHOST.toString(), 6000, interval);
-
-        } catch (InterruptedException e) {
-            log.error("netty");
+            log.info("netty服务启动完成, ws://{}{}:{} 耗时: {}ms", NetUtil.LOCALHOST4.getHostAddress(), serverProperties.getWebsocketPath(), serverProperties.getPort(), interval.toMillis());
+            serverChannel.closeFuture().sync();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        } finally {
+            boss.shutdownGracefully();
+            worker.shutdownGracefully();
         }
     }
 
-    @PreDestroy
-    public void destroy() {
-        serverChannel.close();
+    private GroupChannelOption createGroupChannelOption() {
+        // 根据环境自动选择，开发者也可以重写此方法，做些自定义
+        GroupChannelOption groupChannelOption;
+
+        // 根据系统内核来优化
+        String osName = System.getProperty("os.name");
+        if (osName.toLowerCase().contains("linux")) {
+            // linux
+            groupChannelOption = new GroupChannelOptionForLinux();
+        } else if (osName.toLowerCase().contains("mac")) {
+            // mac
+            groupChannelOption = new GroupChannelOptionForMac();
+        } else {
+            // other system
+            groupChannelOption = new GroupChannelOptionForOther();
+        }
+
+        return groupChannelOption;
     }
 }

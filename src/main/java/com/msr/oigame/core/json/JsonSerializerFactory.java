@@ -8,9 +8,6 @@ public class JsonSerializerFactory {
         if (ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", null)) {
             return new JacksonJsonSerializer();
         }
-        if (ClassUtils.isPresent("com.google.gson.Gson", null)) {
-            return new GsonJsonSerializer();
-        }
         return null;
     }
 }

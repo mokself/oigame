@@ -3,3 +3,13 @@ spring:
     url: jdbc:mysql://localhost:3306/memenana
     username: root
     password: 123456
+
+game:
+  port: 6000
+  idle:
+    idle-time: 300
+    reader-idle-time: 120
+    writer-idle-time: 900
+    all-idle-time: 300
+    time-unit: seconds
+    pong: true

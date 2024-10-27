@@ -19,7 +19,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         return getObjectMapper().writeValueAsString(data);
     }
 
-    private ObjectMapper getObjectMapper() {
+    public ObjectMapper getObjectMapper() {
         if (this.objectMapper == null) {
             // 默认objectMapper
             this.objectMapper = new ObjectMapper();
