@@ -1,8 +1,5 @@
 package com.msr.oigame.core.codec;
 
-import com.msr.oigame.core.protocol.BaseMessage;
-import io.netty.buffer.ByteBuf;
-
 public interface MessageCodec {
     /**
      * 将数据对象编码成字节数组
@@ -10,14 +7,14 @@ public interface MessageCodec {
      * @param data 数据对象
      * @return bytes
      */
-    ByteBuf encode(Object data);
+    byte[] encode(Object data);
 
     /**
      * 将netty字节缓冲解码成消息对象
      * @param data netty字节缓冲
      * @return 消息对象
      */
-    BaseMessage decode(ByteBuf data);
+    <T> T decode(byte[] data, Class<T> type);
 
     /**
      * 编解码名

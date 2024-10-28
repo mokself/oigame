@@ -1,9 +1,8 @@
 package com.msr.oigame.netty.handler;
 
-import com.msr.oigame.core.codec.ExternalMessageCodec;
 import com.msr.oigame.core.protocol.BaseMessage;
-import com.msr.oigame.core.protocol.ExternalMessage;
 import com.msr.oigame.core.protocol.GameErrEnum;
+import com.msr.oigame.core.protocol.MessageFactory;
 import com.msr.oigame.netty.session.AbstractUserSession;
 import com.msr.oigame.netty.session.UserSessionManager;
 import io.netty.channel.ChannelHandler;
@@ -42,9 +41,9 @@ public class AccessAuthHandler extends SimpleChannelInboundHandler<BaseMessage> 
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, BaseMessage msg) throws Exception {
-        int cmd = msg.getCmd();
+        int cmd = msg.cmd();
         if (rejectCmds.contains(cmd)) {
-            ExternalMessage rejectMessage = ExternalMessageCodec.encodeMsg(cmd, GameErrEnum.CMD_ERROR.getCode());
+            BaseMessage rejectMessage = MessageFactory.employError(msg, GameErrEnum.CMD_ERROR);
             ctx.writeAndFlush(rejectMessage);
             return;
         }
@@ -53,7 +52,7 @@ public class AccessAuthHandler extends SimpleChannelInboundHandler<BaseMessage> 
             // 访问了需要登录才能访问的 action
             AbstractUserSession userSession = UserSessionManager.getUserSession(ctx);
             if (userSession.getUserId() == null) {
-                ExternalMessage rejectMessage = ExternalMessageCodec.encodeMsg(cmd, GameErrEnum.VERIFY_IDENTITY_FAILED.getCode());
+                BaseMessage rejectMessage = MessageFactory.employError(msg, GameErrEnum.VERIFY_IDENTITY_FAILED);
                 ctx.writeAndFlush(rejectMessage);
                 return;
             }

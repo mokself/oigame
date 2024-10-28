@@ -1,11 +1,7 @@
 package com.msr.oigame.netty.handler;
 
 import com.msr.oigame.config.ServerProperties;
-import com.msr.oigame.core.codec.ExternalMessageCodec;
-import com.msr.oigame.core.protocol.BaseMessage;
-import com.msr.oigame.core.protocol.ExternalMessage;
-import com.msr.oigame.core.protocol.GameErrEnum;
-import com.msr.oigame.core.protocol.MessageCmdCode;
+import com.msr.oigame.core.protocol.*;
 import com.msr.oigame.netty.session.SocketUserSession;
 import com.msr.oigame.netty.session.UserSessionManager;
 import io.netty.channel.ChannelHandler;
@@ -33,7 +29,7 @@ public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(@Nonnull ChannelHandlerContext ctx, @Nonnull Object msg) throws Exception {
         BaseMessage message = (BaseMessage) msg;
 
-        int cmd = message.getCmd();
+        int cmd = message.cmd();
         if (cmd != MessageCmdCode.idle) {
             // 不是心跳请求. 交给下一个业务处理 (handler) , 下一个业务指的是你编排 handler 时的顺序
             ctx.fireChannelRead(msg);
@@ -41,7 +37,7 @@ public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
         }
 
         if (this.pong) {
-            ExternalMessage idleMessage = ExternalMessageCodec.encodeMsg(MessageCmdCode.idle, 0, System.currentTimeMillis());
+            BaseMessage idleMessage = MessageFactory.createIdleMessage();
             ctx.writeAndFlush(idleMessage);
         }
     }
@@ -64,7 +60,7 @@ public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
                     log.debug("ALL_IDLE 总超时");
                 }
                 // 发送心跳超时消息
-                ExternalMessage message = ExternalMessageCodec.encodeMsg(MessageCmdCode.idle, GameErrEnum.IDLE_TIMEOUT.getCode());
+                BaseMessage message = MessageFactory.employError(MessageCmdCode.idle, GameErrEnum.IDLE_TIMEOUT);
                 userSession.writeAndFlush(message);
                 // 关闭会话
                 UserSessionManager.removeUserSession(userSession);

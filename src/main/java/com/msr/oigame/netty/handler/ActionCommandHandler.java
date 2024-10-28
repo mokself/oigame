@@ -1,10 +1,10 @@
 package com.msr.oigame.netty.handler;
 
+import com.msr.oigame.common.exception.MsgException;
 import com.msr.oigame.core.codec.DataCodec;
-import com.msr.oigame.core.codec.ExternalMessageCodec;
 import com.msr.oigame.core.protocol.BaseMessage;
-import com.msr.oigame.core.protocol.ExternalMessage;
 import com.msr.oigame.core.protocol.GameErrEnum;
+import com.msr.oigame.core.protocol.MessageFactory;
 import com.msr.oigame.core.skeleton.ActionCommand;
 import com.msr.oigame.core.skeleton.FlowContext;
 import com.msr.oigame.core.skeleton.annotation.Action;
@@ -72,10 +72,10 @@ public class ActionCommandHandler extends SimpleChannelInboundHandler<BaseMessag
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, BaseMessage msg) throws Exception {
-        ActionCommand actionCommand = actionMap.get(msg.getCmd());
+        ActionCommand actionCommand = actionMap.get(msg.cmd());
         if (actionCommand == null) {
-            log.warn("请求到未定义处理器的命令, cmd: {}", msg.getCmd());
-            ExternalMessage rejectMessage = ExternalMessageCodec.encodeMsg(msg.getCmd(), GameErrEnum.CMD_ERROR.getCode());
+            log.warn("请求到未定义处理器的命令, cmd: {}", msg.cmd());
+            BaseMessage rejectMessage = MessageFactory.employError(msg, GameErrEnum.CMD_ERROR);
             ctx.writeAndFlush(rejectMessage);
             return;
         }
@@ -101,19 +101,24 @@ public class ActionCommandHandler extends SimpleChannelInboundHandler<BaseMessag
             }
 
             // 其他消息会尝试进行转换
-            params[i] = DataCodec.decode(msg, type);
+            params[i] = DataCodec.decode(msg.data(), type);
 
             // TODO JSR380验证
         }
 
-        Object result = actionCommand.method().invoke(actionCommand.target(), params);
-        if (result != null) {
-            if (result instanceof BaseMessage) {
-                ctx.writeAndFlush(result);
-            } else {
-                ByteBuf encodeResponse = DataCodec.encode(new Object[]{actionCommand.cmd(), result});
-                ctx.writeAndFlush(encodeResponse);
+        try {
+            Object result = actionCommand.method().invoke(actionCommand.target(), params);
+            if (result != null) {
+                if (result instanceof BaseMessage) {
+                    ctx.writeAndFlush(result);
+                } else {
+                    BaseMessage message = MessageFactory.createMessage(msg.cmd(), result);
+                    ctx.writeAndFlush(message);
+                }
             }
+        } catch (MsgException e) {
+            BaseMessage errorMessage = MessageFactory.employError(msg, e.getGameErrEnum());
+            ctx.writeAndFlush(errorMessage);
         }
     }
 }

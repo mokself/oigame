@@ -4,7 +4,7 @@ import com.msr.oigame.config.ServerProperties;
 import com.msr.oigame.netty.handler.AccessAuthHandler;
 import com.msr.oigame.netty.handler.ActionCommandHandler;
 import com.msr.oigame.netty.handler.SocketIdleHandler;
-import com.msr.oigame.netty.handler.codec.WebSocketExternalCodec;
+import com.msr.oigame.netty.handler.codec.WebSocketMessageCodec;
 import com.msr.oigame.netty.loopgroup.GroupChannelOption;
 import com.msr.oigame.netty.loopgroup.GroupChannelOptionForLinux;
 import com.msr.oigame.netty.loopgroup.GroupChannelOptionForMac;
@@ -87,7 +87,7 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
                                 new HttpObjectAggregator(64 * 1024),    // http消息聚合器
                                 new WebSocketServerCompressionHandler(),                // websocket数据压缩
                                 new WebSocketServerProtocolHandler(config),             // websocket协议处理器
-                                new WebSocketExternalCodec(),                           // websocket编解码
+                                new WebSocketMessageCodec(),                           // websocket编解码
                                 new IdleStateHandler(                                   // netty心跳检测
                                         propertiesIdle.getReaderIdleTime(),
                                         propertiesIdle.getWriterIdleTime(),
