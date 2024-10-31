@@ -1,5 +1,8 @@
 package com.msr.oigame.core.protocol;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.msr.oigame.common.adapter.jackson.PrimitiveStringDeserializer;
+
 public record BaseMessage(
         /**
          * 消息指令，也可以叫路由
@@ -12,5 +15,6 @@ public record BaseMessage(
         /**
          * 消息体数据
          */
-        byte[] data
+        @JsonDeserialize(using = PrimitiveStringDeserializer.class)
+        Object data
 ) { }

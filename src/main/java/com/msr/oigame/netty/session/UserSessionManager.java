@@ -1,5 +1,9 @@
 package com.msr.oigame.netty.session;
 
+import com.msr.oigame.common.event.LoginEvent;
+import com.msr.oigame.common.event.LogoutEvent;
+import com.msr.oigame.core.protocol.BaseMessage;
+import com.msr.oigame.util.SpringUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.group.ChannelGroup;
@@ -39,8 +43,7 @@ public class UserSessionManager {
         return userIdMap.get(userId);
     }
 
-    public static boolean settingUserId(Channel channel, long userId) {
-        SocketUserSession userSession = channel.attr(userSessionKey).get();
+    public static boolean settingUserId(SocketUserSession userSession, long userId) {
         if (userSession == null) {
             return false;
         }
@@ -49,8 +52,8 @@ public class UserSessionManager {
 
         userIdMap.put(userId, userSession);
 
-        // TODO 上线通知
-//        this.userHookInto(userSession);
+        // 发送登录事件
+        SpringUtil.getContext().publishEvent(new LoginEvent(userId));
 
         return true;
     }
@@ -60,11 +63,10 @@ public class UserSessionManager {
             return;
         }
 
-        // TODO 离线通知
-//        this.userHookQuit(userSession);
-
         Long userId = userSession.getUserId();
         if (userId != null) {
+            // 发送离线事件
+            SpringUtil.getContext().publishEvent(new LogoutEvent(userId));
             userIdMap.remove(userId);
         }
 
@@ -79,7 +81,7 @@ public class UserSessionManager {
         return channelGroup.size();
     }
 
-    public static void broadcast(Object msg) {
+    public static void broadcast(BaseMessage msg) {
         channelGroup.writeAndFlush(msg);
     }
 }

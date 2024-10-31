@@ -2,29 +2,27 @@ package com.msr.oigame.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
+import com.msr.oigame.config.JacksonConfig;
 import lombok.SneakyThrows;
 
 public class JsonUtil {
-    @Getter
-    private static final ObjectMapper objectMapper;
 
-    static {
-        objectMapper = new ObjectMapper();
+    public static ObjectMapper getObjectMapper() {
+        return JacksonConfig.getObjectMapper();
     }
 
     @SneakyThrows
     public static String toJson(Object data) {
-        return objectMapper.writeValueAsString(data);
+        return JacksonConfig.getObjectMapper().writeValueAsString(data);
     }
 
     @SneakyThrows
     public static <T> T parseJson(String json, Class<T> type) {
-        return objectMapper.readValue(json, type);
+        return JacksonConfig.getObjectMapper().readValue(json, type);
     }
 
     @SneakyThrows
     public static <T> T parseJson(String json, TypeReference<T> type) {
-        return objectMapper.readValue(json, type);
+        return JacksonConfig.getObjectMapper().readValue(json, type);
     }
 }

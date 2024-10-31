@@ -18,8 +18,7 @@ public class JsonMessageCodec implements MessageCodec {
     }
 
     /**
-     * 将netty字节缓冲解码成消息对象
-     * @param data netty字节缓冲
+     * 将字节数组解码成消息对象
      * @return 消息对象
      */
     @SneakyThrows

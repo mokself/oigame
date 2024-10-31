@@ -1,5 +1,6 @@
 package com.msr.oigame.netty.session;
 
+import com.msr.oigame.core.protocol.BaseMessage;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 
@@ -9,7 +10,7 @@ public class SocketUserSession extends AbstractUserSession {
         super(channel);
     }
 
-    public ChannelFuture writeAndFlush(Object message) {
+    public ChannelFuture writeAndFlush(BaseMessage message) {
         return this.channel.writeAndFlush(message);
     }
 }

@@ -8,6 +8,7 @@ import com.msr.oigame.core.protocol.MessageFactory;
 import com.msr.oigame.core.skeleton.ActionCommand;
 import com.msr.oigame.core.skeleton.FlowContext;
 import com.msr.oigame.core.skeleton.annotation.Action;
+import com.msr.oigame.netty.session.UserSessionManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -23,6 +24,7 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Parameter;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -82,7 +84,7 @@ public class ActionCommandHandler extends SimpleChannelInboundHandler<BaseMessag
 
         // 解析参数
         Parameter[] parameters = actionCommand.method().getParameters();
-        FlowContext flowContext = new FlowContext();
+        FlowContext flowContext = new FlowContext(UserSessionManager.getUserSession(ctx), actionCommand, msg);
         Object[] params = new Object[parameters.length];
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
@@ -101,7 +103,13 @@ public class ActionCommandHandler extends SimpleChannelInboundHandler<BaseMessag
             }
 
             // 其他消息会尝试进行转换
-            params[i] = DataCodec.decode(msg.data(), type);
+            try {
+                params[i] = DataCodec.decode(msg.data().toString().getBytes(StandardCharsets.UTF_8), type);
+            } catch (Exception e) {
+                log.error("参数解析失败, cmd: {}, 尝试将消息体转换为: [{}]类型时出错; 参数位置: [{}] 消息处理器: [{}]",
+                        msg.cmd(), type.getName(), i, actionCommand.method(), e);
+                throw e;
+            }
 
             // TODO JSR380验证
         }
@@ -118,6 +126,10 @@ public class ActionCommandHandler extends SimpleChannelInboundHandler<BaseMessag
             }
         } catch (MsgException e) {
             BaseMessage errorMessage = MessageFactory.employError(msg, e.getGameErrEnum());
+            ctx.writeAndFlush(errorMessage);
+        } catch (Exception e) {
+            log.error("处理消息时发生异常, cmd: {}, 消息处理器: [{}]", msg.cmd(), actionCommand.method(), e);
+            BaseMessage errorMessage = MessageFactory.employError(msg, GameErrEnum.SERVER_ERROR);
             ctx.writeAndFlush(errorMessage);
         }
     }

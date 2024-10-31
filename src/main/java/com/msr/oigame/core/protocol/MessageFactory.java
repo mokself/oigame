@@ -1,23 +1,20 @@
 package com.msr.oigame.core.protocol;
 
-import com.msr.oigame.core.codec.DataCodec;
-
 public class MessageFactory {
-    public static final byte[] EMPTY_BYTES = new byte[0];
+    public static final byte[] EMPTY_DATA = null;
 
     public static BaseMessage createMessage(int cmd, Object data) {
-        byte[] bytes = DataCodec.encode(data);
-        return new BaseMessage(cmd, 0, bytes);
+        return new BaseMessage(cmd, 0, data);
     }
 
     public static BaseMessage createIdleMessage() {
-        return new BaseMessage(MessageCmdCode.idle, 0, EMPTY_BYTES);
+        return new BaseMessage(MessageCmdCode.idle, 0, EMPTY_DATA);
     }
     public static BaseMessage employError(BaseMessage msg, GameErrEnum err) {
-        return new BaseMessage(msg.cmd(), err.getCode(), EMPTY_BYTES);
+        return new BaseMessage(msg.cmd(), err.getCode(), EMPTY_DATA);
     }
 
     public static BaseMessage employError(int cmd, GameErrEnum err) {
-        return new BaseMessage(cmd, err.getCode(), EMPTY_BYTES);
+        return new BaseMessage(cmd, err.getCode(), EMPTY_DATA);
     }
 }

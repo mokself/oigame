@@ -10,8 +10,8 @@ public interface MessageCodec {
     byte[] encode(Object data);
 
     /**
-     * 将netty字节缓冲解码成消息对象
-     * @param data netty字节缓冲
+     * 将数据解码成消息对象
+     * @param data 数据
      * @return 消息对象
      */
     <T> T decode(byte[] data, Class<T> type);

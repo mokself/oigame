@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 @Data
 @Configuration
 @ConfigurationProperties("game")
-public class ServerProperties {
+public class ServerConfig {
     private int port;
 
     private String websocketPath = "";

@@ -1,9 +1,10 @@
 package com.msr.oigame.netty;
 
-import com.msr.oigame.config.ServerProperties;
+import com.msr.oigame.config.ServerConfig;
 import com.msr.oigame.netty.handler.AccessAuthHandler;
 import com.msr.oigame.netty.handler.ActionCommandHandler;
 import com.msr.oigame.netty.handler.SocketIdleHandler;
+import com.msr.oigame.netty.handler.UserSessionHandler;
 import com.msr.oigame.netty.handler.codec.WebSocketMessageCodec;
 import com.msr.oigame.netty.loopgroup.GroupChannelOption;
 import com.msr.oigame.netty.loopgroup.GroupChannelOptionForLinux;
@@ -33,14 +34,14 @@ import java.time.Instant;
 @Component
 @RequiredArgsConstructor
 public class WebsocketServer implements CommandLineRunner, DisposableBean {
-    private final ServerProperties serverProperties;
+    private final ServerConfig serverConfig;
     private final ActionCommandHandler actionCommandHandler;
 
     private Channel serverChannel;
 
     @Override
     public void run(String... args) {
-        start();
+        new Thread(this::start).start();
     }
 
     @Override
@@ -75,26 +76,27 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
                     @Override
                     protected void initChannel(@Nonnull SocketChannel ch) {
                         WebSocketServerProtocolConfig config = WebSocketServerProtocolConfig.newBuilder()
-                                .websocketPath(serverProperties.getWebsocketPath())
+                                .websocketPath(serverConfig.getWebsocketPath())
                                 .maxFramePayloadLength(1024 * 1024)
                                 .checkStartsWith(true)
                                 .allowExtensions(true)
                                 .build();
-                        ServerProperties.Idle propertiesIdle = serverProperties.getIdle();
+                        ServerConfig.Idle propertiesIdle = serverConfig.getIdle();
 
                         ch.pipeline().addLast(
                                 new HttpServerCodec(),                                  // http编解码器
                                 new HttpObjectAggregator(64 * 1024),    // http消息聚合器
                                 new WebSocketServerCompressionHandler(),                // websocket数据压缩
                                 new WebSocketServerProtocolHandler(config),             // websocket协议处理器
-                                new WebSocketMessageCodec(),                           // websocket编解码
+                                new WebSocketMessageCodec(),                            // websocket编解码
+                                new UserSessionHandler(),                               // 会话处理
                                 new IdleStateHandler(                                   // netty心跳检测
                                         propertiesIdle.getReaderIdleTime(),
                                         propertiesIdle.getWriterIdleTime(),
                                         propertiesIdle.getAllIdleTime(),
                                         propertiesIdle.getTimeUnit()
                                 ),
-                                new SocketIdleHandler(serverProperties),                // 心跳处理
+                                new SocketIdleHandler(serverConfig),                // 心跳处理
                                 AccessAuthHandler.INSTANCE,                             // 认证处理
                                 actionCommandHandler                                    // 业务处理
                         );
@@ -102,9 +104,9 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
                 });
 
         try {
-            serverChannel = server.bind(serverProperties.getPort()).sync().channel();
+            serverChannel = server.bind(serverConfig.getPort()).sync().channel();
             Duration interval = Duration.between(startTime, Instant.now());
-            log.info("netty服务启动完成, ws://{}{}:{} 耗时: {}ms", NetUtil.LOCALHOST4.getHostAddress(), serverProperties.getWebsocketPath(), serverProperties.getPort(), interval.toMillis());
+            log.info("netty服务启动完成, ws://{}{}:{} 耗时: {}ms", NetUtil.LOCALHOST4.getHostAddress(), serverConfig.getWebsocketPath(), serverConfig.getPort(), interval.toMillis());
             serverChannel.closeFuture().sync();
         } catch (Exception e) {
             log.error(e.getMessage(), e);
