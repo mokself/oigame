@@ -19,8 +19,9 @@ public class LoginAction {
         if (user == null) {
             user = new User();
             user.setKey(key);
-            userRepo.save(user);
         }
+        user.setLastLoginIp(ctx.getUserSession().getIp());
+        userRepo.save(user);
         ctx.login(user.getId());
         return user;
     }

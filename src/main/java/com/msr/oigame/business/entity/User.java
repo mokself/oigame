@@ -17,6 +17,8 @@ public class User implements SnowflakeIdSupport {
 
     private String key;
 
+    private String lastLoginIp;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

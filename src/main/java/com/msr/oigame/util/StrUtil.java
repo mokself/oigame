@@ -5,6 +5,9 @@ import org.springframework.util.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class StrUtil extends StringUtils {
 
@@ -159,5 +162,19 @@ public class StrUtil extends StringUtils {
         }
 
         return obj.toString();
+    }
+
+    public static List<String> splitTrim(String str, String separator) {
+        if (str == null || str.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String[] parts = str.split(separator);
+        List<String> result = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                result.add(part.trim());
+            }
+        }
+        return result;
     }
 }

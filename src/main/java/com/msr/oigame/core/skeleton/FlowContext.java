@@ -4,7 +4,9 @@ import com.msr.oigame.core.protocol.BaseMessage;
 import com.msr.oigame.netty.session.SocketUserSession;
 import com.msr.oigame.netty.session.UserSessionManager;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
+@Getter
 @AllArgsConstructor
 public class FlowContext {
     private final SocketUserSession userSession;
