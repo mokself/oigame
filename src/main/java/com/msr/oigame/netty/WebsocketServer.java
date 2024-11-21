@@ -83,11 +83,11 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
                         ch.pipeline().addLast(
                                 new HttpServerCodec(),                                  // http编解码器
                                 new HttpObjectAggregator(64 * 1024),    // http消息聚合器
+                                new HttpRealIpHandler(),                                // 获取真实ip
                                 new WebSocketServerCompressionHandler(),                // websocket数据压缩
                                 new WebSocketServerProtocolHandler(config),             // websocket协议处理器
                                 new WebSocketMessageCodec(),                            // websocket编解码
                                 new UserSessionHandler(),                               // 会话处理
-                                new HttpRealIpHandler(),                                // 获取真实ip
                                 new IdleStateHandler(                                   // netty心跳检测
                                         propertiesIdle.getReaderIdleTime(),
                                         propertiesIdle.getWriterIdleTime(),
