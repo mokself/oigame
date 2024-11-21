@@ -15,14 +15,18 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolConfig;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.NetUtil;
 import jakarta.annotation.Nonnull;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ResourceUtils;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -81,6 +85,7 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
                         ServerConfig.Idle propertiesIdle = serverConfig.getIdle();
 
                         ch.pipeline().addLast(
+//                                getSslContext().newHandler(ch.alloc()),                 // 开启ssl
                                 new HttpServerCodec(),                                  // http编解码器
                                 new HttpObjectAggregator(64 * 1024),    // http消息聚合器
                                 new HttpRealIpHandler(),                                // 获取真实ip
@@ -132,5 +137,13 @@ public class WebsocketServer implements CommandLineRunner, DisposableBean {
         }
 
         return groupChannelOption;
+    }
+
+    @SneakyThrows
+    private SslContext getSslContext() {
+        return SslContextBuilder.forServer(
+                ResourceUtils.getFile("classpath:cert.crt"),
+                ResourceUtils.getFile("classpath:rsa_aes_private.key")
+        ).build();
     }
 }
