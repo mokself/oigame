@@ -20,3 +20,9 @@ logging:
   level:
     root: info
     com.msr.oigame: debug
+
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: my-producer-dev-local
+    send-message-timeout: 30000

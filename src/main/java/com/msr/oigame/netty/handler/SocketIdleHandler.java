@@ -6,10 +6,9 @@ import com.msr.oigame.netty.session.SocketUserSession;
 import com.msr.oigame.netty.session.UserSessionManager;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
-import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @ChannelHandler.Sharable
-public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
+public class SocketIdleHandler extends SimpleChannelInboundHandler<BaseMessage> {
 
     private final boolean pong;
 
@@ -26,10 +25,8 @@ public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(@Nonnull ChannelHandlerContext ctx, @Nonnull Object msg) throws Exception {
-        BaseMessage message = (BaseMessage) msg;
-
-        int cmd = message.cmd();
+    protected void channelRead0(ChannelHandlerContext ctx, BaseMessage msg) throws Exception {
+        int cmd = msg.cmd();
         if (cmd != MessageCmdCode.idle) {
             // 不是心跳请求. 交给下一个业务处理 (handler) , 下一个业务指的是你编排 handler 时的顺序
             ctx.fireChannelRead(msg);
@@ -37,7 +34,7 @@ public class SocketIdleHandler extends ChannelInboundHandlerAdapter {
         }
 
         if (this.pong) {
-            BaseMessage idleMessage = MessageFactory.createIdleMessage();
+            BaseMessage idleMessage = MessageFactory.responseMessage(msg, System.currentTimeMillis());
             ctx.writeAndFlush(idleMessage);
         }
     }

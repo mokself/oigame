@@ -10,6 +10,11 @@ public class MessageFactory {
     public static BaseMessage createIdleMessage() {
         return new BaseMessage(MessageCmdCode.idle, 0, EMPTY_DATA);
     }
+
+    public static BaseMessage responseMessage(BaseMessage requestMessage, Object data) {
+        return new BaseMessage(requestMessage.cmd(), 0, data);
+    }
+
     public static BaseMessage employError(BaseMessage msg, GameErrEnum err) {
         return new BaseMessage(msg.cmd(), err.getCode(), EMPTY_DATA);
     }
